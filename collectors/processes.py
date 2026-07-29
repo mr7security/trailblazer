@@ -132,40 +132,83 @@ def _analyze_processes(processes: list[dict]) -> list[dict]:
                 "OPSEC",
             ))
 
-        # ── cmd.exe / bash hijo de proceso inusual ────────────────────────
+        # ── cmd.exe / bash hijo de proceso de Office/scripting (no browsers) ──
+        # Browsers (chrome, firefox, brave, edge) lanzan cmd.exe legítimamente
+        # para abrir archivos/URLs; solo alertamos desde Office/scripting engines.
         if name in ("cmd.exe", "bash", "sh", "zsh") and proc.get("ppid"):
             parent_name = pid_map.get(proc["ppid"], "").lower()
-            unusual_parents = {"winword.exe", "excel.exe", "outlook.exe", "iexplore.exe",
-                               "chrome.exe", "firefox.exe", "acrobat.exe", "wscript.exe", "mshta.exe"}
-            if parent_name in unusual_parents:
+            high_risk_parents = {
+                "winword.exe", "excel.exe", "powerpnt.exe", "outlook.exe",
+                "acrobat.exe", "acrord32.exe", "wscript.exe", "cscript.exe",
+                "mshta.exe", "regsvr32.exe", "rundll32.exe",
+            }
+            medium_risk_parents = {
+                "iexplore.exe",   # IE ya obsoleto — siempre sospechoso
+                "chrome.exe", "firefox.exe", "brave.exe", "msedge.exe",
+            }
+            if parent_name in high_risk_parents:
                 findings.append(_finding(
                     "critical",
-                    f"Shell ({proc['name']}) lanzada por proceso sospechoso: {parent_name} (PID {proc['ppid']})",
-                    proc,
-                    "Lateral Movement",
+                    f"Shell ({proc['name']}) lanzada por proceso de Office/scripting: "
+                    f"{parent_name} (PID {proc['ppid']}) — ALERTA ALTA",
+                    proc, "Lateral Movement",
+                ))
+            elif parent_name in medium_risk_parents:
+                findings.append(_finding(
+                    "medium",
+                    f"Shell ({proc['name']}) lanzada por browser: {parent_name} "
+                    f"(PID {proc['ppid']}) — verificar contexto",
+                    proc, "Lateral Movement",
                 ))
 
-        # ── Proceso con conexiones de red externas activas ────────────────
-        external_conns = [
-            c for c in proc.get("connections", [])
-            if c["raddr"] and not _is_local(c["raddr"].split(":")[0])
-        ]
-        if external_conns:
-            findings.append(_finding(
-                "medium",
-                f"Proceso con {len(external_conns)} conexión(es) externa(s): {proc['name']} (PID {proc['pid']})",
-                proc,
-                "Network",
-                extra={"connections": external_conns},
-            ))
+        # ── Proceso con conexiones externas — excluir PID 0 y apps conocidas ──
+        # PID 0 = System Idle Process (Windows) — falso positivo estructural.
+        # Apps de escritorio comunes se reportan solo si tienen muchas conexiones.
+        KNOWN_DESKTOP_APPS = {
+            "chrome.exe", "brave.exe", "firefox.exe", "msedge.exe",
+            "teams.exe", "ms-teams.exe", "discord.exe", "slack.exe",
+            "onedrive.exe", "onedrive.sync.service.exe", "filesynchelper.exe",
+            "steam.exe", "msedgewebview2.exe", "searchhost.exe",
+            "explorer.exe", "svchost.exe", "widgets.exe",
+            "m365copilot.exe", "copilot.exe",
+            # Apps de desarrollo y productividad con conexiones legítimas
+            "claude.exe", "code.exe", "cursor.exe", "windsurf.exe",
+            "zoom.exe", "webex.exe", "lync.exe", "msteams.exe",
+            "dropbox.exe", "box.exe", "googledrivesync.exe",
+            # Windows Defender — conexiones legítimas a Microsoft Cloud
+            "msmpeng.exe", "nissrv.exe", "msseces.exe", "securityhealthservice.exe",
+        }
+        EXTERNAL_CONN_THRESHOLD = 10  # solo alertar si supera este umbral para apps conocidas
 
-        # ── Proceso sin exe resuelto (puede indicar process hollowing) ────
-        if not proc["exe"] and proc["name"] not in ("System", "Idle", ""):
+        if proc["pid"] != 0:
+            external_conns = [
+                c for c in proc.get("connections", [])
+                if c["raddr"] and not _is_local(c["raddr"].split(":")[0])
+            ]
+            if external_conns:
+                is_known = name in KNOWN_DESKTOP_APPS
+                count    = len(external_conns)
+                # Apps conocidas: solo alertar si conexiones exceden umbral
+                if not is_known or count > EXTERNAL_CONN_THRESHOLD:
+                    severity = "high" if not is_known and count > 5 else "medium"
+                    label    = f"({count} conn. — inusual para esta app)" if is_known else ""
+                    findings.append(_finding(
+                        severity,
+                        f"Proceso con {count} conexión(es) externa(s): "
+                        f"{proc['name']} (PID {proc['pid']}) {label}".strip(),
+                        proc, "Network",
+                        extra={"connections": external_conns[:5]},  # limitar output
+                    ))
+
+        # ── Proceso sin exe resuelto — excluir procesos del kernel conocidos ──
+        KERNEL_PROCS = {"system idle process", "system", "idle", "registry",
+                        "memory compression", "secure system", ""}
+        if not proc["exe"] and name not in KERNEL_PROCS and proc["pid"] not in (0, 4):
             findings.append(_finding(
                 "medium",
-                f"Proceso sin ruta de ejecutable resuelta: {proc['name']} (PID {proc['pid']}) — posible Process Hollowing",
-                proc,
-                "Evasion",
+                f"Proceso sin ruta de ejecutable resuelta: {proc['name']} (PID {proc['pid']}) "
+                f"— posible Process Hollowing",
+                proc, "Evasion",
             ))
 
     return findings

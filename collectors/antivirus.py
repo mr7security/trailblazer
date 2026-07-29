@@ -231,10 +231,23 @@ def _check_defender_exclusions() -> dict:
         if out and out != "null":
             import json
             raw = json.loads(out)
-            exclusions["paths"]      = [x for x in (raw.get("paths") or []) if x]
-            exclusions["extensions"] = [x for x in (raw.get("extensions") or []) if x]
-            exclusions["processes"]  = [x for x in (raw.get("processes") or []) if x]
-            exclusions["iparanges"]  = [x for x in (raw.get("iparanges") or []) if x]
+
+            def _valid_excl(val: str) -> bool:
+                """Filtra valores de error devueltos cuando no hay privilegios admin."""
+                if not val:
+                    return False
+                v = str(val).lower()
+                return not (
+                    v.startswith("n/a") or
+                    "administrator" in v or
+                    "must be" in v or
+                    "access denied" in v
+                )
+
+            exclusions["paths"]      = [x for x in (raw.get("paths") or []) if _valid_excl(x)]
+            exclusions["extensions"] = [x for x in (raw.get("extensions") or []) if _valid_excl(x)]
+            exclusions["processes"]  = [x for x in (raw.get("processes") or []) if _valid_excl(x)]
+            exclusions["iparanges"]  = [x for x in (raw.get("iparanges") or []) if _valid_excl(x)]
 
     except Exception:
         pass
