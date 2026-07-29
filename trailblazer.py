@@ -37,11 +37,15 @@ from reporters import html_reporter
 
 # Módulos disponibles
 AVAILABLE_MODULES = {
-    "processes":  ("collectors.processes",  "processes"),
-    "network":    ("collectors.network",    "network"),
-    "users":      ("collectors.users",      "users"),
-    "persistence":("collectors.persistence","persistence"),
-    "eventlogs":  ("collectors.eventlogs",  "eventlogs"),
+    "processes":   ("collectors.processes",   "processes"),
+    "network":     ("collectors.network",     "network"),
+    "users":       ("collectors.users",       "users"),
+    "persistence": ("collectors.persistence", "persistence"),
+    "eventlogs":   ("collectors.eventlogs",   "eventlogs"),
+    "filesystem":  ("collectors.filesystem",  "filesystem"),
+    "credentials": ("collectors.credentials", "credentials"),
+    "wmi":         ("collectors.wmi",         "wmi"),
+    "antivirus":   ("collectors.antivirus",   "antivirus"),
 }
 
 
@@ -58,6 +62,10 @@ Módulos disponibles:
   users       — Cuentas locales, sesiones, grupos privilegiados
   persistence — Mecanismos de persistencia (registro, cron, servicios...)
   eventlogs   — Análisis de logs de eventos (Windows EVTX / Linux auth.log)
+  filesystem  — Prefetch, executables en rutas temporales, timestomping
+  credentials — Claves SSH, AWS, .env, historial PowerShell, tokens Git
+  wmi         — WMI Event Subscriptions, COM hijacking, IFEO (Windows)
+  antivirus   — Estado Defender, exclusiones, AMSI, detección de EDR/AV
 
 Ejemplos:
   python trailblazer.py --full-scan
@@ -172,6 +180,10 @@ def main() -> None:
             "users":       tr.print_users,
             "persistence": tr.print_persistence,
             "eventlogs":   tr.print_eventlogs,
+            "filesystem":  tr.print_generic,
+            "credentials": tr.print_generic,
+            "wmi":         tr.print_generic,
+            "antivirus":   tr.print_antivirus,
         }
         if mod_name in printer_map:
             printer_map[mod_name](result, args.verbose)

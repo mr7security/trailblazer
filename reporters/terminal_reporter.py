@@ -239,6 +239,64 @@ def print_eventlogs(result: dict, verbose: bool) -> None:
     )
 
 
+def print_antivirus(result: dict, verbose: bool) -> None:
+    if "error" in result:
+        console.print(f"[red]  {result['error']}[/]")
+        return
+    s = result.get("summary", {})
+    import platform
+    if platform.system() == "Windows":
+        av_ok   = s.get("defender_enabled", "?")
+        rt_ok   = s.get("realtime_protection", "?")
+        amsi    = s.get("amsi_status", "?")
+        excl    = s.get("exclusions_total", 0)
+        edr_n   = s.get("edr_av_count", 0)
+        av_str  = "[green]ON[/]"  if av_ok  is True  else "[red]OFF[/]"  if av_ok  is False else "[dim]?[/]"
+        rt_str  = "[green]ON[/]"  if rt_ok  is True  else "[red]OFF[/]"  if rt_ok  is False else "[dim]?[/]"
+        amsi_str = (
+            "[red]BYPASSED[/]" if amsi == "bypassed" else
+            "[green]activo[/]" if amsi == "active"   else f"[dim]{amsi}[/]"
+        )
+        excl_color = "red" if excl > 0 else "green"
+        console.print(
+            f"  Defender: {av_str}  RealTime: {rt_str}  "
+            f"AMSI: {amsi_str}  "
+            f"Exclusiones: [{excl_color}]{excl}[/]  "
+            f"EDR/AV: [cyan]{edr_n}[/]"
+        )
+    else:
+        clam  = "[green]instalado[/]" if s.get("clamav_installed") else "[red]no instalado[/]"
+        sel   = s.get("selinux_mode", "?")
+        aa    = s.get("apparmor_mode", "?")
+        audit = "[green]activo[/]" if s.get("auditd_running") else "[red]inactivo[/]"
+        console.print(
+            f"  ClamAV: {clam}  SELinux: [cyan]{sel}[/]  "
+            f"AppArmor: [cyan]{aa}[/]  auditd: {audit}"
+        )
+
+
+def print_generic(result: dict, verbose: bool) -> None:
+    """Printer genérico para módulos sin printer dedicado."""
+    if "error" in result:
+        console.print(f"[red]  {result['error']}[/]")
+        return
+    s    = result.get("summary", {})
+    nf   = s.get("findings_count", len(result.get("findings", [])))
+    risk = result.get("risk_score", 0)
+    items_key = next((k for k in ["total_items", "total_events", "total_processes"]
+                      if k in s), None)
+    items_val = s.get(items_key, "?") if items_key else "?"
+    crit  = s.get("critical", 0)
+    high  = s.get("high", 0)
+
+    parts = [f"Items: [cyan]{items_val}[/]", f"Findings: [yellow]{nf}[/]"]
+    if crit:
+        parts.append(f"Críticos: [bold red]{crit}[/]")
+    if high:
+        parts.append(f"Altos: [red]{high}[/]")
+    console.print("  " + "  ".join(parts))
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 def _print_top_procs(processes: list[dict], n: int = 20) -> None:
     table = Table(box=box.MINIMAL, show_header=True, header_style="dim")
