@@ -435,14 +435,19 @@ def _analyze(items: list[dict]) -> list[dict]:
 
         if itype == "wmi_subscription":
             # Filtrar subscripciones built-in legítimas de Windows
-            name = item.get("name", "").lower()
+            name  = (item.get("name") or "").lower()
+            klass = (item.get("class") or "").lower()
             BUILTIN_WMI = {
                 "scm event log filter", "scm event log consumer",
                 "ntlm log filter", "ntlm log consumer",
                 "ucmrt filter", "ucmrt consumer",
                 "bvtfilter", "bvtconsumer",
             }
-            if any(b in name for b in BUILTIN_WMI):
+            # FilterToConsumerBinding sin nombre = binding del SCM built-in
+            is_builtin_binding = (
+                "filtertoconsumerbinding" in klass and name in ("none", "", "null")
+            )
+            if any(b in name for b in BUILTIN_WMI) or is_builtin_binding:
                 continue  # Subscripción nativa de Windows, no maliciosa
             findings.append(_finding(
                 "critical",
