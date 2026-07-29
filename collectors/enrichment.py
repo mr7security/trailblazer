@@ -28,8 +28,13 @@ from typing import Any
 from core.config import RISK_WEIGHTS
 from core import mitre
 
-PLATFORM     = platform.system()
-DATA_DIR     = Path(__file__).resolve().parent.parent / "data"
+PLATFORM = platform.system()
+
+# Ruta de datos: junto al .exe en modo frozen, junto al proyecto en modo script
+if getattr(sys, "frozen", False):
+    DATA_DIR = Path(sys.executable).parent / "data"
+else:
+    DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 C2_CACHE     = DATA_DIR / "c2_ips.txt"
 C2_CACHE_URL = "https://feodotracker.abuse.ch/downloads/ipblocklist.txt"
 C2_CACHE_TTL = timedelta(hours=6)   # refrescar cada 6 horas

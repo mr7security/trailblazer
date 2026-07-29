@@ -11,11 +11,19 @@ Uso:
 from __future__ import annotations
 import json
 import os
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-BASELINE_DIR = Path(__file__).resolve().parent.parent / "baselines"
+# Cuando se ejecuta como .exe (PyInstaller frozen), los archivos de datos
+# deben escribirse junto al ejecutable, no dentro del bundle temporal.
+if getattr(sys, "frozen", False):
+    _BASE = Path(sys.executable).parent
+else:
+    _BASE = Path(__file__).resolve().parent.parent
+
+BASELINE_DIR = _BASE / "baselines"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
