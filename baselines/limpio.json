@@ -1,0 +1,193 @@
+{
+  "meta": {
+    "name": "limpio",
+    "created": "2026-07-29T20:25:44.320195",
+    "tool": "TrailBlazer",
+    "platform": "Windows",
+    "hostname": "DESKTOP-4206UK8"
+  },
+  "findings": [
+    {
+      "severity": "medium",
+      "description": "Proceso con 110 conexión(es) externa(s): chrome.exe (PID 14816) (110 conn. — inusual para esta app)",
+      "category": "Network",
+      "process": {
+        "pid": 14816,
+        "name": "chrome.exe",
+        "exe": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+        "username": "DESKTOP-4206UK8\\MR7",
+        "cmdline": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe --type=utility --utility-sub-type=network.mojom.NetworkService --lang=es --service-sandbox-type=none --no-pre-read-main-dll --metrics-shmem-handle"
+      },
+      "technique_id": "T1071",
+      "technique_name": "Application Layer Protocol",
+      "technique_tactic": "C2",
+      "technique_url": "https://attack.mitre.org/techniques/T1071/",
+      "connections": [
+        {
+          "laddr": "172.30.1.5:63938",
+          "raddr": "35.214.217.206:443",
+          "status": "ESTABLISHED"
+        },
+        {
+          "laddr": "172.30.1.5:57555",
+          "raddr": "151.101.132.134:443",
+          "status": "ESTABLISHED"
+        },
+        {
+          "laddr": "172.30.1.5:60050",
+          "raddr": "199.232.33.91:443",
+          "status": "ESTABLISHED"
+        },
+        {
+          "laddr": "172.30.1.5:54104",
+          "raddr": "64.233.167.188:5228",
+          "status": "ESTABLISHED"
+        },
+        {
+          "laddr": "172.30.1.5:49674",
+          "raddr": "193.0.160.131:443",
+          "status": "ESTABLISHED"
+        }
+      ],
+      "_module": "processes"
+    },
+    {
+      "severity": "medium",
+      "description": "Shell (cmd.exe) lanzada por browser: chrome.exe (PID 300) — verificar contexto",
+      "category": "Lateral Movement",
+      "process": {
+        "pid": 18932,
+        "name": "cmd.exe",
+        "exe": "C:\\Windows\\System32\\cmd.exe",
+        "username": "DESKTOP-4206UK8\\MR7",
+        "cmdline": "C:\\WINDOWS\\system32\\cmd.exe /d /s /c C:\\Users\\MR7\\AppData\\Local\\Packages\\Claude_pzs8sxrjxfjjc\\LocalCache\\Roaming\\Claude\\ChromeNativeHost\\chrome-native-host.exe chrome-extension://fcoeoabgfenejglbffodg"
+      },
+      "technique_id": "T1059.003",
+      "technique_name": "Windows Command Shell",
+      "technique_tactic": "Execution",
+      "technique_url": "https://attack.mitre.org/techniques/T1059/003/",
+      "_module": "processes"
+    },
+    {
+      "severity": "medium",
+      "description": "Proceso con 1 conexión(es) externa(s): olkBg.exe (PID 50032)",
+      "category": "Network",
+      "process": {
+        "pid": 50032,
+        "name": "olkBg.exe",
+        "exe": "C:\\Program Files\\WindowsApps\\Microsoft.OutlookForWindows_1.2026.713.100_x64__8wekyb3d8bbwe\\olkBg.exe",
+        "username": "DESKTOP-4206UK8\\MR7",
+        "cmdline": "C:\\Program Files\\WindowsApps\\Microsoft.OutlookForWindows_1.2026.713.100_x64__8wekyb3d8bbwe\\olkBg.exe --sync --launch=mail/backgroundsync.html"
+      },
+      "technique_id": "T1071",
+      "technique_name": "Application Layer Protocol",
+      "technique_tactic": "C2",
+      "technique_url": "https://attack.mitre.org/techniques/T1071/",
+      "connections": [
+        {
+          "laddr": "172.30.1.5:49242",
+          "raddr": "13.69.109.130:443",
+          "status": "ESTABLISHED"
+        }
+      ],
+      "_module": "processes"
+    },
+    {
+      "severity": "info",
+      "description": "Grupo privilegiado 'Administrators' tiene 2 miembro(s): Administrator, MR7",
+      "category": "Privilege",
+      "_module": "users"
+    },
+    {
+      "severity": "high",
+      "description": "Ejecutable reciente en ruta sospechosa: C:\\Users\\MR7\\AppData\\Local\\Temp\\gfw-install-AVby2ZJd.exe (0.0 KB)",
+      "category": "OPSEC",
+      "path": "C:\\Users\\MR7\\AppData\\Local\\Temp\\gfw-install-AVby2ZJd.exe",
+      "type": "suspicious_exec",
+      "technique_id": "T1036.005",
+      "technique_name": "Match Legitimate Name or Location",
+      "technique_tactic": "Defense Evasion",
+      "technique_url": "https://attack.mitre.org/techniques/T1036/005/",
+      "_module": "filesystem"
+    },
+    {
+      "severity": "high",
+      "description": "Ejecutable reciente en ruta sospechosa: C:\\Users\\MR7\\AppData\\Local\\Temp\\gfw-install-xEDhtZMM.exe (0.0 KB)",
+      "category": "OPSEC",
+      "path": "C:\\Users\\MR7\\AppData\\Local\\Temp\\gfw-install-xEDhtZMM.exe",
+      "type": "suspicious_exec",
+      "technique_id": "T1036.005",
+      "technique_name": "Match Legitimate Name or Location",
+      "technique_tactic": "Defense Evasion",
+      "technique_url": "https://attack.mitre.org/techniques/T1036/005/",
+      "_module": "filesystem"
+    },
+    {
+      "severity": "info",
+      "description": "Sin EDR/AV de terceros detectado — solo Windows Defender",
+      "category": "Coverage",
+      "type": "antivirus",
+      "_module": "antivirus"
+    }
+  ],
+  "summaries": {
+    "processes": {
+      "total_processes": 425,
+      "suspicious_count": 0,
+      "findings_count": 3
+    },
+    "network": {
+      "total_connections": 244,
+      "listening_ports": 36,
+      "established": 133,
+      "external_connections": 144,
+      "findings_count": 0
+    },
+    "users": {
+      "current_user": "MR7",
+      "is_admin": false,
+      "active_sessions": 1,
+      "local_users": 11,
+      "findings_count": 1
+    },
+    "persistence": {
+      "total_items": 23,
+      "suspicious": 0,
+      "findings_count": 0
+    },
+    "eventlogs": {
+      "total_events": 3,
+      "timeframe": "24h",
+      "findings_count": 0,
+      "critical": 0,
+      "high": 0
+    },
+    "filesystem": {
+      "total_items": 6,
+      "findings_count": 2,
+      "suspicious": 2
+    },
+    "credentials": {
+      "total_items": 3,
+      "findings_count": 0,
+      "critical": 0,
+      "high": 0
+    },
+    "wmi": {
+      "total_items": 8,
+      "findings_count": 0,
+      "critical": 0,
+      "high": 0
+    },
+    "antivirus": {
+      "findings_count": 1,
+      "critical": 0,
+      "high": 0,
+      "defender_enabled": true,
+      "realtime_protection": true,
+      "amsi_status": "error",
+      "exclusions_total": 0,
+      "edr_av_count": 1
+    }
+  }
+}
