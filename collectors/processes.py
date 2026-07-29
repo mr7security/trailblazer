@@ -51,7 +51,7 @@ def _enumerate_processes(verbose: bool) -> list[dict]:
     """Enumera procesos con atributos relevantes."""
     procs = []
     attrs = ["pid", "name", "exe", "username", "create_time",
-             "status", "ppid", "cmdline", "connections"]
+             "status", "ppid", "cmdline"]
 
     for proc in psutil.process_iter(attrs, ad_value=None):
         try:

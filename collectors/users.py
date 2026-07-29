@@ -152,12 +152,19 @@ def _get_privileged_groups() -> list[dict]:
                 stderr=subprocess.DEVNULL).decode(errors="ignore")
             members = []
             capture = False
+            # Frases a ignorar (mensajes de éxito en varios idiomas)
+            ignore_phrases = (
+                "the command completed", "se ha completado",
+                "el comando se", "command completed",
+            )
             for line in out.splitlines():
                 if "---" in line:
                     capture = not capture
                     continue
-                if capture and line.strip():
-                    members.append(line.strip())
+                stripped = line.strip()
+                if capture and stripped:
+                    if not any(p in stripped.lower() for p in ignore_phrases):
+                        members.append(stripped)
             groups.append({"group": "Administrators", "members": members})
         except Exception:
             pass
