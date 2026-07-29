@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from core.config import RISK_WEIGHTS
+from core import mitre
 
 PLATFORM = platform.system()
 
@@ -339,12 +340,11 @@ def _analyze(items: list[dict]) -> list[dict]:
                 findings.append(_finding(
                     "critical",
                     f"Herramienta ofensiva en Prefetch (ejecutada recientemente): {item['name']}",
-                    item, "OPSEC",
+                    item, "OPSEC", technique="T1588.002",
                 ))
 
         elif item.get("type") == "suspicious_exec":
             name = item.get("name", "").lower()
-            # Ejecutable reciente en ruta temporal
             if item.get("is_recent") and name not in KNOWN_APPDATA_EXES:
                 sev = "high" if any(
                     d in item["path"].lower()
@@ -354,15 +354,14 @@ def _analyze(items: list[dict]) -> list[dict]:
                     sev,
                     f"Ejecutable {'reciente ' if item['is_recent'] else ''}en ruta sospechosa: "
                     f"{item['path']} ({item['size_kb']} KB)",
-                    item, "OPSEC",
+                    item, "OPSEC", technique="T1036.005",
                 ))
-            # Timestomping
             if item.get("timestomp"):
                 findings.append(_finding(
                     "high",
                     f"Posible timestomping detectado en: {item['path']} "
                     f"(modificado antes de ser creado)",
-                    item, "AntiForensics",
+                    item, "AntiForensics", technique="T1070.006",
                 ))
 
         elif item.get("type") == "double_extension":
@@ -370,14 +369,14 @@ def _analyze(items: list[dict]) -> list[dict]:
                 "high",
                 f"Archivo con doble extensión sospechosa: {item['name']} "
                 f"({' → '.join(item.get('extensions', []))})",
-                item, "Malware",
+                item, "Malware", technique="T1036.007",
             ))
 
         elif item.get("type") == "suid_binary":
             findings.append(_finding(
                 "high",
                 f"Binario SUID/SGID no estándar: {item['path']} (mode {item.get('mode', '?')})",
-                item, "Privilege",
+                item, "Privilege", technique="T1548.001",
             ))
 
         elif item.get("type") == "large_recent_file":
@@ -385,17 +384,21 @@ def _analyze(items: list[dict]) -> list[dict]:
                 "medium",
                 f"Archivo grande ({item['size_mb']} MB) creado recientemente en ruta temporal: "
                 f"{item['path']}",
-                item, "Exfil",
+                item, "Exfil", technique="T1041",
             ))
 
     return findings
 
 
-def _finding(severity: str, description: str, item: dict, category: str) -> dict:
-    return {
+def _finding(severity: str, description: str, item: dict,
+             category: str, technique: str = "") -> dict:
+    f = {
         "severity":    severity,
         "description": description,
         "category":    category,
         "path":        item.get("path", ""),
         "type":        item.get("type", ""),
     }
+    if technique:
+        f.update(mitre.get(technique))
+    return f

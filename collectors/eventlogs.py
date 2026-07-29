@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from core.config import WIN_EVENT_IDS, LOG_PATHS, TIMEFRAME_SECONDS, RISK_WEIGHTS
+from core import mitre
 
 PLATFORM = platform.system()
 
@@ -262,6 +263,7 @@ def _analyze(events: list[dict]) -> list[dict]:
                 "description": f"Posible brute force: {count} intentos fallidos para usuario '{user}'",
                 "category":    "BruteForce",
                 "count":       count,
+                **mitre.get("T1110"),
             })
 
     # ── Log de auditoría limpiado ──────────────────────────────────────
@@ -270,6 +272,7 @@ def _analyze(events: list[dict]) -> list[dict]:
             "severity":    "critical",
             "description": "Log de seguridad limpiado (Event 1102) — indicador de anti-forense",
             "category":    "AntiForensics",
+            **mitre.get("T1070.001"),
         })
 
     # ── Nuevas cuentas de usuario ──────────────────────────────────────
@@ -278,6 +281,7 @@ def _analyze(events: list[dict]) -> list[dict]:
             "severity":    "high",
             "description": f"Nueva cuenta de usuario creada: {u}",
             "category":    "Accounts",
+            **mitre.get("T1136.001"),
         })
 
     # ── Tareas programadas creadas/modificadas ─────────────────────────
@@ -286,6 +290,7 @@ def _analyze(events: list[dict]) -> list[dict]:
             "severity":    "medium",
             "description": f"Tarea programada creada/modificada: {t[:80]}",
             "category":    "Persistence",
+            **mitre.get("T1053.005"),
         })
 
     # ── Comandos sudo ─────────────────────────────────────────────────
@@ -295,6 +300,7 @@ def _analyze(events: list[dict]) -> list[dict]:
             "description": f"{len(sudo_users)} ejecución(es) con sudo registradas",
             "category":    "Privilege",
             "detail":      sudo_users[:10],
+            **mitre.get("T1078.001"),
         })
 
     # ── Logons con privilegios especiales ──────────────────────────────
@@ -303,6 +309,7 @@ def _analyze(events: list[dict]) -> list[dict]:
             "severity":    "medium",
             "description": f"{len(priv_logons)} logons con privilegios especiales (Event 4672)",
             "category":    "Privilege",
+            **mitre.get("T1078.002"),
         })
 
     return findings

@@ -16,6 +16,7 @@ except ImportError:
     PSUTIL_OK = False
 
 from core.config import SUSPICIOUS_PROC_NAMES, SUSPICIOUS_PATHS, RISK_WEIGHTS
+from core import mitre
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -106,8 +107,7 @@ def _analyze_processes(processes: list[dict]) -> list[dict]:
             findings.append(_finding(
                 "critical",
                 f"Proceso ofensivo conocido detectado: {proc['name']} (PID {proc['pid']})",
-                proc,
-                "OPSEC",
+                proc, "OPSEC", technique="T1588.002",
             ))
 
         # ── Proceso ejecutado desde ruta sospechosa ────────────────────────
@@ -116,8 +116,7 @@ def _analyze_processes(processes: list[dict]) -> list[dict]:
                 findings.append(_finding(
                     "high",
                     f"Proceso ejecutando desde ruta sospechosa: {proc['exe']}",
-                    proc,
-                    "OPSEC",
+                    proc, "OPSEC", technique="T1036.005",
                 ))
                 break
 
@@ -128,13 +127,10 @@ def _analyze_processes(processes: list[dict]) -> list[dict]:
             findings.append(_finding(
                 "high",
                 f"PowerShell con flags de evasión detectado: {proc['cmdline'][:120]}",
-                proc,
-                "OPSEC",
+                proc, "OPSEC", technique="T1059.001",
             ))
 
         # ── cmd.exe / bash hijo de proceso de Office/scripting (no browsers) ──
-        # Browsers (chrome, firefox, brave, edge) lanzan cmd.exe legítimamente
-        # para abrir archivos/URLs; solo alertamos desde Office/scripting engines.
         if name in ("cmd.exe", "bash", "sh", "zsh") and proc.get("ppid"):
             parent_name = pid_map.get(proc["ppid"], "").lower()
             high_risk_parents = {
@@ -143,7 +139,7 @@ def _analyze_processes(processes: list[dict]) -> list[dict]:
                 "mshta.exe", "regsvr32.exe", "rundll32.exe",
             }
             medium_risk_parents = {
-                "iexplore.exe",   # IE ya obsoleto — siempre sospechoso
+                "iexplore.exe",
                 "chrome.exe", "firefox.exe", "brave.exe", "msedge.exe",
             }
             if parent_name in high_risk_parents:
@@ -151,14 +147,14 @@ def _analyze_processes(processes: list[dict]) -> list[dict]:
                     "critical",
                     f"Shell ({proc['name']}) lanzada por proceso de Office/scripting: "
                     f"{parent_name} (PID {proc['ppid']}) — ALERTA ALTA",
-                    proc, "Lateral Movement",
+                    proc, "Lateral Movement", technique="T1059.003",
                 ))
             elif parent_name in medium_risk_parents:
                 findings.append(_finding(
                     "medium",
                     f"Shell ({proc['name']}) lanzada por browser: {parent_name} "
                     f"(PID {proc['ppid']}) — verificar contexto",
-                    proc, "Lateral Movement",
+                    proc, "Lateral Movement", technique="T1059.003",
                 ))
 
         # ── Proceso con conexiones externas — excluir PID 0 y apps conocidas ──
@@ -196,8 +192,8 @@ def _analyze_processes(processes: list[dict]) -> list[dict]:
                         severity,
                         f"Proceso con {count} conexión(es) externa(s): "
                         f"{proc['name']} (PID {proc['pid']}) {label}".strip(),
-                        proc, "Network",
-                        extra={"connections": external_conns[:5]},  # limitar output
+                        proc, "Network", technique="T1071",
+                        extra={"connections": external_conns[:5]},
                     ))
 
         # ── Proceso sin exe resuelto — excluir procesos del kernel conocidos ──
@@ -208,7 +204,7 @@ def _analyze_processes(processes: list[dict]) -> list[dict]:
                 "medium",
                 f"Proceso sin ruta de ejecutable resuelta: {proc['name']} (PID {proc['pid']}) "
                 f"— posible Process Hollowing",
-                proc, "Evasion",
+                proc, "Evasion", technique="T1055.012",
             ))
 
     return findings
@@ -222,7 +218,8 @@ def _is_local(ip: str) -> bool:
 
 
 def _finding(severity: str, description: str, proc: dict,
-             category: str, extra: dict | None = None) -> dict:
+             category: str, technique: str = "",
+             extra: dict | None = None) -> dict:
     f = {
         "severity":    severity,
         "description": description,
@@ -235,6 +232,8 @@ def _finding(severity: str, description: str, proc: dict,
             "cmdline":  proc.get("cmdline", "")[:200],
         },
     }
+    if technique:
+        f.update(mitre.get(technique))
     if extra:
         f.update(extra)
     return f

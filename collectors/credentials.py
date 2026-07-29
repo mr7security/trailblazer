@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Any
 
 from core.config import RISK_WEIGHTS
+from core import mitre
 
 PLATFORM = platform.system()
 HOME     = Path.home()
@@ -401,14 +402,14 @@ def _analyze(items: list[dict]) -> list[dict]:
             if item.get("perm_issue"):
                 sev = "critical"
                 msg += " (permisos incorrectos — legible por otros usuarios)"
-            findings.append(_finding(sev, msg, item, "CredentialExposure"))
+            findings.append(_finding(sev, msg, item, "CredentialExposure", technique="T1552.004"))
 
         # ── AWS ──────────────────────────────────────────────────────────
         elif itype == "aws_credentials" and item.get("has_secret"):
             findings.append(_finding(
                 "critical",
                 f"Credenciales AWS con secret key en texto plano: {item['path']}",
-                item, "CredentialExposure",
+                item, "CredentialExposure", technique="T1552.001",
             ))
 
         # ── .env ─────────────────────────────────────────────────────────
@@ -417,7 +418,7 @@ def _analyze(items: list[dict]) -> list[dict]:
             findings.append(_finding(
                 "high",
                 f"Archivo .env con secretos detectados ({types}): {item['path']}",
-                item, "CredentialExposure",
+                item, "CredentialExposure", technique="T1552.001",
             ))
 
         # ── Git credentials ───────────────────────────────────────────────
@@ -426,7 +427,7 @@ def _analyze(items: list[dict]) -> list[dict]:
                 "high",
                 f"Tokens Git almacenados en texto plano: {item['path']} "
                 f"({item['stored_tokens']} entrada(s))",
-                item, "CredentialExposure",
+                item, "CredentialExposure", technique="T1552.001",
             ))
 
         # ── Docker auth ───────────────────────────────────────────────────
@@ -434,7 +435,7 @@ def _analyze(items: list[dict]) -> list[dict]:
             findings.append(_finding(
                 "high",
                 f"Docker config con credenciales de registro almacenadas: {item['path']}",
-                item, "CredentialExposure",
+                item, "CredentialExposure", technique="T1552.001",
             ))
 
         # ── Kubernetes token ──────────────────────────────────────────────
@@ -442,7 +443,7 @@ def _analyze(items: list[dict]) -> list[dict]:
             findings.append(_finding(
                 "high",
                 f"Kubeconfig con tokens de autenticación: {item['path']}",
-                item, "CredentialExposure",
+                item, "CredentialExposure", technique="T1552.001",
             ))
 
         # ── Historial de comandos ─────────────────────────────────────────
@@ -451,7 +452,7 @@ def _analyze(items: list[dict]) -> list[dict]:
             findings.append(_finding(
                 "medium",
                 f"Historial de comandos con {n} línea(s) sospechosa(s): {item['path']}",
-                item, "OPSEC",
+                item, "OPSEC", technique="T1552.004",
             ))
 
         # ── Config files con secretos ─────────────────────────────────────
@@ -460,7 +461,7 @@ def _analyze(items: list[dict]) -> list[dict]:
             findings.append(_finding(
                 "high",
                 f"Archivo de configuración con secretos ({types}): {item['path']}",
-                item, "CredentialExposure",
+                item, "CredentialExposure", technique="T1552.001",
             ))
 
         # ── Windows Credential Manager ────────────────────────────────────
@@ -468,17 +469,21 @@ def _analyze(items: list[dict]) -> list[dict]:
             findings.append(_finding(
                 "medium",
                 f"Windows Credential Manager con {item['count']} credencial(es) almacenada(s)",
-                item, "CredentialExposure",
+                item, "CredentialExposure", technique="T1555.004",
             ))
 
     return findings
 
 
-def _finding(severity: str, description: str, item: dict, category: str) -> dict:
-    return {
+def _finding(severity: str, description: str, item: dict,
+             category: str, technique: str = "") -> dict:
+    f = {
         "severity":    severity,
         "description": description,
         "category":    category,
         "path":        item.get("path", ""),
         "type":        item.get("type", ""),
     }
+    if technique:
+        f.update(mitre.get(technique))
+    return f

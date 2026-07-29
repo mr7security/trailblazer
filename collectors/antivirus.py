@@ -31,6 +31,7 @@ from pathlib import Path
 from typing import Any
 
 from core.config import RISK_WEIGHTS
+from core import mitre
 
 PLATFORM = platform.system()
 
@@ -427,7 +428,7 @@ def _analyze(data: dict) -> list[dict]:
             findings.append(_finding(
                 "critical",
                 "Windows Defender DESACTIVADO — el sistema no tiene protección AV activa",
-                "DefenseEvasion",
+                "DefenseEvasion", technique="T1562.001",
             ))
 
         # ── Protección en tiempo real desactivada ──────────────────────────
@@ -435,7 +436,7 @@ def _analyze(data: dict) -> list[dict]:
             findings.append(_finding(
                 "critical",
                 "Protección en tiempo real de Defender DESACTIVADA (RealTimeProtection=False)",
-                "DefenseEvasion",
+                "DefenseEvasion", technique="T1562.001",
             ))
 
         # ── Tamper Protection desactivada ──────────────────────────────────
@@ -444,7 +445,7 @@ def _analyze(data: dict) -> list[dict]:
             findings.append(_finding(
                 "high",
                 "Tamper Protection DESACTIVADA — Defender puede ser modificado sin restricciones",
-                "DefenseEvasion",
+                "DefenseEvasion", technique="T1562.001",
             ))
 
         # ── Firmas desactualizadas ─────────────────────────────────────────
@@ -452,7 +453,7 @@ def _analyze(data: dict) -> list[dict]:
             findings.append(_finding(
                 "medium",
                 "Firmas de Defender DESACTUALIZADAS — capacidad de detección reducida",
-                "DefenseEvasion",
+                "DefenseEvasion", technique="T1562.001",
             ))
 
         # ── Scan antiguo ───────────────────────────────────────────────────
@@ -469,7 +470,7 @@ def _analyze(data: dict) -> list[dict]:
             findings.append(_finding(
                 "critical",
                 f"AMSI BYPASSED en la sesión actual — {amsi.get('details', '')}",
-                "DefenseEvasion",
+                "DefenseEvasion", technique="T1562.001",
             ))
 
         # ── Exclusiones de Defender ────────────────────────────────────────
@@ -581,10 +582,14 @@ def _build_summary(data: dict, findings: list) -> dict:
     return s
 
 
-def _finding(severity: str, description: str, category: str) -> dict:
-    return {
+def _finding(severity: str, description: str, category: str,
+             technique: str = "") -> dict:
+    f = {
         "severity":    severity,
         "description": description,
         "category":    category,
         "type":        "antivirus",
     }
+    if technique:
+        f.update(mitre.get(technique))
+    return f

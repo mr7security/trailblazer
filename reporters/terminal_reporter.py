@@ -122,19 +122,24 @@ def print_findings(module_results: list[dict], verbose: bool = False) -> None:
         expand=True,
         show_lines=True,
     )
-    table.add_column("Sev",      style="bold", width=9, justify="center")
-    table.add_column("Módulo",   style="dim",  width=12)
-    table.add_column("Categoría", width=14)
+    table.add_column("Sev",        style="bold", width=9,  justify="center")
+    table.add_column("Módulo",     style="dim",  width=12)
+    table.add_column("Categoría",  width=14)
+    table.add_column("ATT&CK",     style="dim cyan", width=13)
     table.add_column("Descripción", ratio=1)
 
     for f in all_findings:
-        sev   = f.get("severity", "info")
-        color = SEVERITY_COLORS.get(sev, "white")
-        icon  = SEVERITY_ICONS.get(sev, "")
+        sev    = f.get("severity", "info")
+        color  = SEVERITY_COLORS.get(sev, "white")
+        icon   = SEVERITY_ICONS.get(sev, "")
+        tid    = f.get("technique_id", "")
+        tname  = f.get("technique_name", "")
+        attack = f"[link={f.get('technique_url', '')}]{tid}[/link]" if tid else "—"
         table.add_row(
             f"[{color}]{icon} {sev.upper()}[/]",
             f.get("_module", "?"),
             f.get("category", "?"),
+            attack,
             f.get("description", ""),
         )
 
@@ -273,6 +278,72 @@ def print_antivirus(result: dict, verbose: bool) -> None:
             f"  ClamAV: {clam}  SELinux: [cyan]{sel}[/]  "
             f"AppArmor: [cyan]{aa}[/]  auditd: {audit}"
         )
+
+
+def print_delta(delta: dict) -> None:
+    """Muestra el diff entre el baseline y el scan actual."""
+    if not RICH_OK:
+        s = delta.get("stats", {})
+        print(f"  DELTA — Nuevos: {s.get('new_count',0)}  "
+              f"Resueltos: {s.get('resolved_count',0)}  "
+              f"Persistentes: {s.get('persisting_count',0)}")
+        return
+
+    s    = delta.get("stats", {})
+    base_date = delta.get("baseline_date", "?")[:19]
+
+    console.print(
+        f"\n  Baseline: [cyan]{delta.get('baseline_name','?')}[/]  "
+        f"[dim]({base_date})[/]\n"
+        f"  [bold green]▼ Resueltos: {s.get('resolved_count',0)}[/]  "
+        f"[bold red]▲ Nuevos: {s.get('new_count',0)}[/]  "
+        f"[dim]↔ Persistentes: {s.get('persisting_count',0)}[/]"
+    )
+
+    # ── Findings NUEVOS (aparecieron tras el baseline) ────────────────────────
+    new_findings = delta.get("new", [])
+    if new_findings:
+        console.print(f"\n  [bold red]🆕 NUEVOS FINDINGS ({len(new_findings)})[/]")
+        t = Table(box=box.SIMPLE, show_header=True, header_style="bold red")
+        t.add_column("Sev",       width=9, justify="center")
+        t.add_column("Módulo",    width=12)
+        t.add_column("ATT&CK",    width=13, style="cyan")
+        t.add_column("Descripción", ratio=1)
+        order = {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}
+        for f in sorted(new_findings, key=lambda x: order.get(x.get("severity","info"), 99)):
+            sev   = f.get("severity", "info")
+            color = SEVERITY_COLORS.get(sev, "white")
+            icon  = SEVERITY_ICONS.get(sev, "")
+            tid   = f.get("technique_id", "—")
+            t.add_row(
+                f"[{color}]{icon} {sev.upper()}[/]",
+                f.get("_module", "?"),
+                tid,
+                f.get("description", ""),
+            )
+        console.print(t)
+
+    # ── Findings RESUELTOS (estaban en baseline, ya no están) ─────────────────
+    resolved = delta.get("resolved", [])
+    if resolved:
+        console.print(f"\n  [bold green]✅ RESUELTOS / DESAPARECIDOS ({len(resolved)})[/]")
+        t = Table(box=box.SIMPLE, show_header=True, header_style="bold green")
+        t.add_column("Sev",       width=9, justify="center")
+        t.add_column("Módulo",    width=12)
+        t.add_column("Descripción", ratio=1)
+        for f in resolved:
+            sev   = f.get("severity", "info")
+            color = SEVERITY_COLORS.get(sev, "white")
+            icon  = SEVERITY_ICONS.get(sev, "")
+            t.add_row(
+                f"[{color}]{icon} {sev.upper()}[/]",
+                f.get("_module", "?"),
+                f.get("description", ""),
+            )
+        console.print(t)
+
+    if not new_findings and not resolved:
+        console.print("\n  [green]✓ Sin cambios respecto al baseline.[/]")
 
 
 def print_generic(result: dict, verbose: bool) -> None:

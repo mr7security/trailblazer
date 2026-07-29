@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import Any
 
 from core.config import RISK_WEIGHTS
+from core import mitre
 
 PLATFORM = platform.system()
 
@@ -453,18 +454,17 @@ def _analyze(items: list[dict]) -> list[dict]:
                 "critical",
                 f"WMI Event Subscription detectada — T1546.003: "
                 f"{item.get('class', '?')} / {item.get('name', '?')}",
-                item, "Persistence",
+                item, "Persistence", technique="T1546.003",
             ))
 
         elif itype == "mof_file":
             findings.append(_finding(
                 "high",
                 f"Archivo MOF fuera de ruta estándar: {item['path']}",
-                item, "Persistence",
+                item, "Persistence", technique="T1546.003",
             ))
 
         elif itype == "com_hijack":
-            # Filtrar COM objects legítimos de Microsoft/Windows
             server = item.get("server", "").lower()
             LEGIT_COM_SERVERS = {
                 "shell32.dll", "mscoree.dll", "ole32.dll", "oleaut32.dll",
@@ -474,17 +474,17 @@ def _analyze(items: list[dict]) -> list[dict]:
             LEGIT_COM_PATHS = {
                 "\\windows\\system32\\", "\\windows\\syswow64\\",
                 "\\program files\\microsoft", "\\program files (x86)\\microsoft",
-                "teamsmeeting",  # Teams Meeting Add-in — legítimo
+                "teamsmeeting",
             }
             server_lower = server.lower()
             if (any(s in server_lower for s in LEGIT_COM_SERVERS) or
                     any(p in server_lower for p in LEGIT_COM_PATHS)):
-                continue  # COM object de Windows/Microsoft, no malicioso
+                continue
             findings.append(_finding(
                 "high",
                 f"COM Object Hijacking (HKCU) — T1546.015: "
                 f"CLSID {item.get('clsid')} → {item.get('server', '?')[:80]}",
-                item, "Persistence",
+                item, "Persistence", technique="T1546.015",
             ))
 
         elif itype == "appinit_dlls":
@@ -492,7 +492,7 @@ def _analyze(items: list[dict]) -> list[dict]:
                 "critical",
                 f"AppInit_DLLs configurado — T1546.010 (inyección global): "
                 f"{item.get('value', '')[:80]}",
-                item, "Persistence",
+                item, "Persistence", technique="T1546.010",
             ))
 
         elif itype == "ifeo_debugger":
@@ -501,21 +501,21 @@ def _analyze(items: list[dict]) -> list[dict]:
                 sev,
                 f"IFEO Debugger Hijacking — T1546.012: "
                 f"{item.get('target')} → {item.get('debugger', '')[:80]}",
-                item, "Persistence",
+                item, "Persistence", technique="T1546.012",
             ))
 
         elif itype == "udev_rule":
             findings.append(_finding(
                 "medium",
                 f"Regla udev con ejecución de comando: {item['path']}",
-                item, "Persistence",
+                item, "Persistence", technique="T1053.003",
             ))
 
         elif itype in ("at_jobs", "at_jobs_cmd") and item.get("count", 0) > 0:
             findings.append(_finding(
                 "medium",
                 f"Trabajos `at` programados detectados: {item.get('count', '?')} trabajo(s)",
-                item, "Persistence",
+                item, "Persistence", technique="T1053.003",
             ))
 
         elif itype == "kernel_modules" and item.get("suspicious"):
@@ -523,7 +523,7 @@ def _analyze(items: list[dict]) -> list[dict]:
                 findings.append(_finding(
                     "critical",
                     f"Módulo del kernel con nombre de rootkit conocido: {mod}",
-                    item, "Rootkit",
+                    item, "Rootkit", technique="T1574.002",
                 ))
 
         elif itype == "pam_module":
@@ -531,7 +531,7 @@ def _analyze(items: list[dict]) -> list[dict]:
                 "high",
                 f"Módulo PAM no estándar — posible interceptor de autenticación: "
                 f"{item.get('module')} en {item.get('file')}",
-                item, "Persistence",
+                item, "Persistence", technique="T1547.001",
             ))
 
         elif itype == "ld_preload_env":
@@ -539,17 +539,21 @@ def _analyze(items: list[dict]) -> list[dict]:
                 "critical",
                 f"LD_PRELOAD activo en entorno — posible rootkit de librería: "
                 f"{item.get('value', '')[:80]}",
-                item, "Rootkit",
+                item, "Rootkit", technique="T1574.002",
             ))
 
     return findings
 
 
-def _finding(severity: str, description: str, item: dict, category: str) -> dict:
-    return {
+def _finding(severity: str, description: str, item: dict,
+             category: str, technique: str = "") -> dict:
+    f = {
         "severity":    severity,
         "description": description,
         "category":    category,
         "type":        item.get("type", ""),
         "path":        item.get("path", item.get("target", "")),
     }
+    if technique:
+        f.update(mitre.get(technique))
+    return f

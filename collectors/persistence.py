@@ -15,6 +15,7 @@ from core.config import (
     WIN_RUN_KEYS, PERSISTENCE_PATHS_LINUX,
     PERSISTENCE_FILES_LINUX, RISK_WEIGHTS,
 )
+from core import mitre
 
 PLATFORM = platform.system()
 
@@ -312,16 +313,22 @@ def _analyze(items: list[dict]) -> list[dict]:
             findings.append(_finding(
                 "critical",
                 f"⚠ /etc/ld.so.preload contiene entradas — posible rootkit de librería",
-                item,
+                item, technique="T1574.002",
             ))
 
         # ── Palabras clave sospechosas en cualquier mecanismo ──────────────
         for kw in suspicious_keywords:
             if kw in content:
+                tech = {
+                    "registry_run":   "T1547.001",
+                    "scheduled_task": "T1053.005",
+                    "systemd_unit":   "T1543.002",
+                    "cron":           "T1053.003",
+                }.get(itype, "T1547.001")
                 findings.append(_finding(
                     "high",
                     f"Contenido sospechoso ('{kw}') en {itype}: {source}",
-                    item,
+                    item, technique=tech,
                 ))
                 break  # un finding por item
 
@@ -330,7 +337,7 @@ def _analyze(items: list[dict]) -> list[dict]:
             findings.append(_finding(
                 "medium",
                 f"Tarea programada ejecutándose como SYSTEM: {item.get('name')}",
-                item,
+                item, technique="T1053.005",
             ))
 
         # ── Servicio systemd en home del usuario ──────────────────────────
@@ -338,17 +345,20 @@ def _analyze(items: list[dict]) -> list[dict]:
             findings.append(_finding(
                 "medium",
                 f"Unidad systemd de usuario en directorio home: {source}",
-                item,
+                item, technique="T1543.002",
             ))
 
     return findings
 
 
-def _finding(severity: str, description: str, item: dict) -> dict:
-    return {
+def _finding(severity: str, description: str, item: dict, technique: str = "") -> dict:
+    f = {
         "severity":    severity,
         "description": description,
         "category":    "Persistence",
         "source":      item.get("source", ""),
         "type":        item.get("type", ""),
     }
+    if technique:
+        f.update(mitre.get(technique))
+    return f
